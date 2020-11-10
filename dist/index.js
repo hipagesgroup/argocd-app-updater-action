@@ -2989,6 +2989,7 @@ function run() {
                 core.info(`File ${file.path} uses chart ${app.spec.source.chart} version ${app.spec.source.targetRevision}`);
                 // If update is not required, continue with the next file
                 if (!app.spec.source.newTargetRevision) {
+                    core.info(`Skipping ${file.path}, no newer version available.`);
                     continue;
                 }
                 // Update required, create branch if it doesn't exist

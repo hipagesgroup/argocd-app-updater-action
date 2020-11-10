@@ -96,6 +96,7 @@ async function run(): Promise<void> {
 
       // If update is not required, continue with the next file
       if (!app.spec.source.newTargetRevision) {
+        core.info(`Skipping ${file.path}, no newer version available.`)
         continue
       }
 
