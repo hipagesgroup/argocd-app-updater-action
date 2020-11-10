@@ -2950,8 +2950,8 @@ function run() {
     var _a;
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            // const token = core.getInput("github-token", { required: true });
-            const octokit = github.getOctokit(process.env.GITHUB_TOKEN || '');
+            const token = process.env.GITHUB_TOKEN || '';
+            const octokit = github.getOctokit(token);
             const org = 'hipagesgroup';
             const repo = 'salesforce-syncer';
             const filePatterns = ['.argocd**.yml'];
@@ -2966,7 +2966,7 @@ function run() {
             });
             // Let's get to work and check those files
             for (const treeItem of treeItems) {
-                core.debug(`Processing file: ${treeItem.path}`);
+                core.info(`Processing file: ${treeItem.path}`);
                 const headBranchName = `${headBranchNamePrefix}-${md5_1.default(treeItem.path)}`;
                 // Determine if the branch exists
                 let branchExists = false;
@@ -2986,26 +2986,26 @@ function run() {
                         : `heads/${baseBranchName}`, path: treeItem.path }));
                 const fileContent = Buffer.from(file.content, 'base64').toString('ascii');
                 const app = yield argocd.readFromString(fileContent);
-                core.debug(`File ${file.path} uses chart ${app.spec.source.chart} version ${app.spec.source.targetRevision}`);
+                core.info(`File ${file.path} uses chart ${app.spec.source.chart} version ${app.spec.source.targetRevision}`);
                 // If update is not required, continue with the next file
                 if (!app.spec.source.newTargetRevision) {
                     continue;
                 }
                 // Update required, create branch if it doesn't exist
                 if (!branchExists) {
-                    core.debug(`Branch missing, creating branch ${headBranchName}`);
+                    core.info(`Branch missing, creating branch ${headBranchName}`);
                     const { data: refData2 } = yield octokit.git.getRef(Object.assign(Object.assign({}, ctx), { ref: `heads/${baseBranchName}` }));
                     yield octokit.git.createRef(Object.assign(Object.assign({}, ctx), { ref: `refs/heads/${headBranchName}`, sha: refData2.object.sha }));
                 }
                 // Get file from head branch, in case it did exists
                 const { data: file2 } = yield octokit.repos.getContent(Object.assign(Object.assign({}, ctx), { ref: `heads/${headBranchName}`, path: treeItem.path }));
                 let fileContent2 = Buffer.from(file2.content, 'base64').toString('ascii');
-                // core.debug(`Found ${file.path} containing chart ${app.spec.source.chart} with version ${app.spec.source.targetRevision}`)
-                // core.debug(`Fetching repo index from ${app.spec.source.repoURL}/index.yaml for chart ${app.spec.source.chart}`)
-                core.debug(`Latest version for chart ${app.spec.source.chart} in index is ${app.spec.source.newTargetRevision}`);
-                // core.debug(`Skipping chart ${app.spec.source.chart}, no newer version available.`)
+                // core.info(`Found ${file.path} containing chart ${app.spec.source.chart} with version ${app.spec.source.targetRevision}`)
+                // core.info(`Fetching repo index from ${app.spec.source.repoURL}/index.yaml for chart ${app.spec.source.chart}`)
+                core.info(`Latest version for chart ${app.spec.source.chart} in index is ${app.spec.source.newTargetRevision}`);
+                // core.info(`Skipping chart ${app.spec.source.chart}, no newer version available.`)
                 fileContent2 = fileContent2.replace(`targetRevision: ${app.spec.source.targetRevision}`, `targetRevision: ${app.spec.source.newTargetRevision}`);
-                core.debug(`build(chart): bump ${app.spec.source.chart} from ${app.spec.source.targetRevision} to ${app.spec.source.newTargetRevision}`);
+                core.info(`build(chart): bump ${app.spec.source.chart} from ${app.spec.source.targetRevision} to ${app.spec.source.newTargetRevision}`);
                 yield octokit.repos.createOrUpdateFileContents(Object.assign(Object.assign({}, ctx), { path: file2.path, message: `build(chart): bump ${app.spec.source.chart} from ${app.spec.source.targetRevision} to ${app.spec.source.newTargetRevision}`, content: Buffer.from(fileContent2, 'ascii').toString('base64'), sha: file2.sha, branch: `refs/heads/${headBranchName}` }));
                 const pullRequestBody = `
 Bumps chart \`${app.spec.source.chart}\` from \`${app.spec.source.targetRevision}\` to \`${app.spec.source.newTargetRevision}\`.
@@ -3017,7 +3017,7 @@ Please ensure you have done your due diligence before merging. The checklist bel
 - [ ] Check the diff in ArgoCD and possibly adjust helm values if necessary
 - [ ] Check the release log of the chart for breaking changes
       `.trim();
-                core.debug(`Creating pull request`);
+                core.info(`Creating pull request`);
                 yield octokit.pulls.create({
                     owner: org,
                     repo,
@@ -3030,7 +3030,7 @@ Please ensure you have done your due diligence before merging. The checklist bel
             }
         }
         catch (error) {
-            core.debug(error);
+            core.info(error);
             core.setFailed(error.message);
         }
     });
@@ -3431,6 +3431,7 @@ exports.addPath = addPath;
  * @returns   string
  */
 function getInput(name, options) {
+    console.log(`INPUT_${name.replace(/ /g, '_').toUpperCase()}`)
     const val = process.env[`INPUT_${name.replace(/ /g, '_').toUpperCase()}`] || '';
     if (options && options.required && !val) {
         throw new Error(`Input required and not supplied: ${name}`);
@@ -3578,6 +3579,7 @@ function getState(name) {
 }
 exports.getState = getState;
 //# sourceMappingURL=core.js.map
+
 
 /***/ }),
 
