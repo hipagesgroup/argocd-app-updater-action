@@ -34,8 +34,8 @@ import * as argocd from './argocd'
 
 async function run(): Promise<void> {
   try {
-    // const token = core.getInput("github-token", { required: true });
-    const octokit = github.getOctokit(process.env.GITHUB_TOKEN || '')
+    const token = core.getInput("github-token");
+    const octokit = github.getOctokit(token || '')
     const org = 'hipagesgroup'
     const repo = 'salesforce-syncer'
     const filePatterns = ['.argocd**.yml']
