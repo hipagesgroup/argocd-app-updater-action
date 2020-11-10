@@ -1,7 +1,7 @@
 import yaml from 'js-yaml'
 import axios, {AxiosResponse} from 'axios'
-import axiosRetry from 'axios-retry'
-import compareVersions, {compare} from 'compare-versions'
+// import axiosRetry from 'axios-retry'
+import compareVersions from 'compare-versions'
 
 export type Application = {
   spec: {
@@ -32,7 +32,7 @@ export async function readFromString(data: string): Promise<Application> {
   const app: Application = yaml.safeLoad(data) as Application
 
   // Remove trailing slash
-  if (app.spec.source.repoURL.substr(-1) == '/') {
+  if (app.spec.source.repoURL.substr(-1) === '/') {
     app.spec.source.repoURL = app.spec.source.repoURL.slice(0, -1)
   }
 
@@ -89,7 +89,8 @@ export async function helmRepoIndex(
   }
 
   HelmChartRepositories[url] = (async (): Promise<HelmChartRepositoryIndex> => {
-    axiosRetry(axios, {retries: 3, retryCondition: axiosRetry.isRetryableError})
+    // TODO: revisit
+    // axiosRetry(axios, {retries: 3, retryCondition: axiosRetry.isRetryableError})
 
     const result: AxiosResponse = await axios.get(url)
 

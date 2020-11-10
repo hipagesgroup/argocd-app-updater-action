@@ -2957,11 +2957,11 @@ function run() {
             const filePatterns = ['.argocd**.yml'];
             const baseBranchName = 'master';
             const headBranchNamePrefix = 'argocd-app-update';
-            const ctx = { owner: org, repo: repo };
+            const ctx = { owner: org, repo };
             // Find if the repo has files that match the defined pattern
-            const { data: refData } = yield octokit.git.getRef(Object.assign(Object.assign({}, ctx), { ref: `heads/${baseBranchName}` }));
-            const getTreeResponse = yield octokit.git.getTree(Object.assign(Object.assign({}, ctx), { tree_sha: refData.object.sha, recursive: 'true' }));
-            const treeItems = (((_a = getTreeResponse.data) === null || _a === void 0 ? void 0 : _a.tree) || []).filter(function (element, index, array) {
+            const { data: refData1 } = yield octokit.git.getRef(Object.assign(Object.assign({}, ctx), { ref: `heads/${baseBranchName}` }));
+            const getTreeResponse = yield octokit.git.getTree(Object.assign(Object.assign({}, ctx), { tree_sha: refData1.object.sha, recursive: 'true' }));
+            const treeItems = (((_a = getTreeResponse.data) === null || _a === void 0 ? void 0 : _a.tree) || []).filter(function (element) {
                 return multimatch_1.default([element.path], filePatterns).length > 0;
             });
             // Let's get to work and check those files
@@ -2976,7 +2976,7 @@ function run() {
                 }
                 catch (error) {
                     // Bubble up if its not branch not found error.
-                    if (error.status != 404) {
+                    if (error.status !== 404) {
                         throw error;
                     }
                 }
@@ -2994,8 +2994,8 @@ function run() {
                 // Update required, create branch if it doesn't exist
                 if (!branchExists) {
                     core.debug(`Branch missing, creating branch ${headBranchName}`);
-                    const { data: refData } = yield octokit.git.getRef(Object.assign(Object.assign({}, ctx), { ref: `heads/${baseBranchName}` }));
-                    yield octokit.git.createRef(Object.assign(Object.assign({}, ctx), { ref: `refs/heads/${headBranchName}`, sha: refData.object.sha }));
+                    const { data: refData2 } = yield octokit.git.getRef(Object.assign(Object.assign({}, ctx), { ref: `heads/${baseBranchName}` }));
+                    yield octokit.git.createRef(Object.assign(Object.assign({}, ctx), { ref: `refs/heads/${headBranchName}`, sha: refData2.object.sha }));
                 }
                 // Get file from head branch, in case it did exists
                 const { data: file2 } = yield octokit.repos.getContent(Object.assign(Object.assign({}, ctx), { ref: `heads/${headBranchName}`, path: treeItem.path }));
@@ -3007,7 +3007,7 @@ function run() {
                 fileContent2 = fileContent2.replace(`targetRevision: ${app.spec.source.targetRevision}`, `targetRevision: ${app.spec.source.newTargetRevision}`);
                 core.debug(`build(chart): bump ${app.spec.source.chart} from ${app.spec.source.targetRevision} to ${app.spec.source.newTargetRevision}`);
                 yield octokit.repos.createOrUpdateFileContents(Object.assign(Object.assign({}, ctx), { path: file2.path, message: `build(chart): bump ${app.spec.source.chart} from ${app.spec.source.targetRevision} to ${app.spec.source.newTargetRevision}`, content: Buffer.from(fileContent2, 'ascii').toString('base64'), sha: file2.sha, branch: `refs/heads/${headBranchName}` }));
-                let pullRequestBody = `
+                const pullRequestBody = `
 Bumps chart \`${app.spec.source.chart}\` from \`${app.spec.source.targetRevision}\` to \`${app.spec.source.newTargetRevision}\`.
 
 **⚠️ Important**
@@ -3020,7 +3020,7 @@ Please ensure you have done your due diligence before merging. The checklist bel
                 core.debug(`Creating pull request`);
                 yield octokit.pulls.create({
                     owner: org,
-                    repo: repo,
+                    repo,
                     title: `build(chart): bump ${app.spec.source.chart} from ${app.spec.source.targetRevision} to ${app.spec.source.newTargetRevision}`,
                     head: `refs/heads/${headBranchName}`,
                     base: `refs/heads/${baseBranchName}`,
@@ -3307,13 +3307,6 @@ utils.forEach(['post', 'put', 'patch'], function forEachMethodWithData(method) {
 
 module.exports = Axios;
 
-
-/***/ }),
-
-/***/ 179:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-module.exports = __webpack_require__(742).default;
 
 /***/ }),
 
@@ -7883,7 +7876,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.helmRepoIndex = exports.newerRevision = exports.readFromString = void 0;
 const js_yaml_1 = __importDefault(__webpack_require__(917));
 const axios_1 = __importDefault(__webpack_require__(545));
-const axios_retry_1 = __importDefault(__webpack_require__(179));
+// import axiosRetry from 'axios-retry'
 const compare_versions_1 = __importDefault(__webpack_require__(296));
 // export function readFromYAML(yaml: string): Application {
 //     let app: Application = <Application>{};
@@ -7894,7 +7887,7 @@ function readFromString(data) {
         // TODO: handle failures, e.g. if yaml cant be used regex parse the structure
         const app = js_yaml_1.default.safeLoad(data);
         // Remove trailing slash
-        if (app.spec.source.repoURL.substr(-1) == '/') {
+        if (app.spec.source.repoURL.substr(-1) === '/') {
             app.spec.source.repoURL = app.spec.source.repoURL.slice(0, -1);
         }
         // TODO: Should this be done here?
@@ -7927,7 +7920,8 @@ function helmRepoIndex(url) {
             return HelmChartRepositories[url];
         }
         HelmChartRepositories[url] = (() => __awaiter(this, void 0, void 0, function* () {
-            axios_retry_1.default(axios_1.default, { retries: 3, retryCondition: axios_retry_1.default.isRetryableError });
+            // TODO: revisit
+            // axiosRetry(axios, {retries: 3, retryCondition: axiosRetry.isRetryableError})
             const result = yield axios_1.default.get(url);
             return js_yaml_1.default.safeLoad(result.data);
         }))();
@@ -12925,264 +12919,6 @@ exports.issueCommand = issueCommand;
 
 /***/ }),
 
-/***/ 742:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.isNetworkError = isNetworkError;
-exports.isRetryableError = isRetryableError;
-exports.isSafeRequestError = isSafeRequestError;
-exports.isIdempotentRequestError = isIdempotentRequestError;
-exports.isNetworkOrIdempotentRequestError = isNetworkOrIdempotentRequestError;
-exports.exponentialDelay = exponentialDelay;
-exports.default = axiosRetry;
-
-var _isRetryAllowed = __webpack_require__(841);
-
-var _isRetryAllowed2 = _interopRequireDefault(_isRetryAllowed);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var namespace = 'axios-retry';
-
-/**
- * @param  {Error}  error
- * @return {boolean}
- */
-function isNetworkError(error) {
-  return !error.response && Boolean(error.code) && // Prevents retrying cancelled requests
-  error.code !== 'ECONNABORTED' && // Prevents retrying timed out requests
-  (0, _isRetryAllowed2.default)(error); // Prevents retrying unsafe errors
-}
-
-var SAFE_HTTP_METHODS = ['get', 'head', 'options'];
-var IDEMPOTENT_HTTP_METHODS = SAFE_HTTP_METHODS.concat(['put', 'delete']);
-
-/**
- * @param  {Error}  error
- * @return {boolean}
- */
-function isRetryableError(error) {
-  return error.code !== 'ECONNABORTED' && (!error.response || error.response.status >= 500 && error.response.status <= 599);
-}
-
-/**
- * @param  {Error}  error
- * @return {boolean}
- */
-function isSafeRequestError(error) {
-  if (!error.config) {
-    // Cannot determine if the request can be retried
-    return false;
-  }
-
-  return isRetryableError(error) && SAFE_HTTP_METHODS.indexOf(error.config.method) !== -1;
-}
-
-/**
- * @param  {Error}  error
- * @return {boolean}
- */
-function isIdempotentRequestError(error) {
-  if (!error.config) {
-    // Cannot determine if the request can be retried
-    return false;
-  }
-
-  return isRetryableError(error) && IDEMPOTENT_HTTP_METHODS.indexOf(error.config.method) !== -1;
-}
-
-/**
- * @param  {Error}  error
- * @return {boolean}
- */
-function isNetworkOrIdempotentRequestError(error) {
-  return isNetworkError(error) || isIdempotentRequestError(error);
-}
-
-/**
- * @return {number} - delay in milliseconds, always 0
- */
-function noDelay() {
-  return 0;
-}
-
-/**
- * @param  {number} [retryNumber=0]
- * @return {number} - delay in milliseconds
- */
-function exponentialDelay() {
-  var retryNumber = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
-
-  var delay = Math.pow(2, retryNumber) * 100;
-  var randomSum = delay * 0.2 * Math.random(); // 0-20% of the delay
-  return delay + randomSum;
-}
-
-/**
- * Initializes and returns the retry state for the given request/config
- * @param  {AxiosRequestConfig} config
- * @return {Object}
- */
-function getCurrentState(config) {
-  var currentState = config[namespace] || {};
-  currentState.retryCount = currentState.retryCount || 0;
-  config[namespace] = currentState;
-  return currentState;
-}
-
-/**
- * Returns the axios-retry options for the current request
- * @param  {AxiosRequestConfig} config
- * @param  {AxiosRetryConfig} defaultOptions
- * @return {AxiosRetryConfig}
- */
-function getRequestOptions(config, defaultOptions) {
-  return Object.assign({}, defaultOptions, config[namespace]);
-}
-
-/**
- * @param  {Axios} axios
- * @param  {AxiosRequestConfig} config
- */
-function fixConfig(axios, config) {
-  if (axios.defaults.agent === config.agent) {
-    delete config.agent;
-  }
-  if (axios.defaults.httpAgent === config.httpAgent) {
-    delete config.httpAgent;
-  }
-  if (axios.defaults.httpsAgent === config.httpsAgent) {
-    delete config.httpsAgent;
-  }
-}
-
-/**
- * Adds response interceptors to an axios instance to retry requests failed due to network issues
- *
- * @example
- *
- * import axios from 'axios';
- *
- * axiosRetry(axios, { retries: 3 });
- *
- * axios.get('http://example.com/test') // The first request fails and the second returns 'ok'
- *   .then(result => {
- *     result.data; // 'ok'
- *   });
- *
- * // Exponential back-off retry delay between requests
- * axiosRetry(axios, { retryDelay : axiosRetry.exponentialDelay});
- *
- * // Custom retry delay
- * axiosRetry(axios, { retryDelay : (retryCount) => {
- *   return retryCount * 1000;
- * }});
- *
- * // Also works with custom axios instances
- * const client = axios.create({ baseURL: 'http://example.com' });
- * axiosRetry(client, { retries: 3 });
- *
- * client.get('/test') // The first request fails and the second returns 'ok'
- *   .then(result => {
- *     result.data; // 'ok'
- *   });
- *
- * // Allows request-specific configuration
- * client
- *   .get('/test', {
- *     'axios-retry': {
- *       retries: 0
- *     }
- *   })
- *   .catch(error => { // The first request fails
- *     error !== undefined
- *   });
- *
- * @param {Axios} axios An axios instance (the axios object or one created from axios.create)
- * @param {Object} [defaultOptions]
- * @param {number} [defaultOptions.retries=3] Number of retries
- * @param {boolean} [defaultOptions.shouldResetTimeout=false]
- *        Defines if the timeout should be reset between retries
- * @param {Function} [defaultOptions.retryCondition=isNetworkOrIdempotentRequestError]
- *        A function to determine if the error can be retried
- * @param {Function} [defaultOptions.retryDelay=noDelay]
- *        A function to determine the delay between retry requests
- */
-function axiosRetry(axios, defaultOptions) {
-  axios.interceptors.request.use(function (config) {
-    var currentState = getCurrentState(config);
-    currentState.lastRequestTime = Date.now();
-    return config;
-  });
-
-  axios.interceptors.response.use(null, function (error) {
-    var config = error.config;
-
-    // If we have no information to retry the request
-    if (!config) {
-      return Promise.reject(error);
-    }
-
-    var _getRequestOptions = getRequestOptions(config, defaultOptions),
-        _getRequestOptions$re = _getRequestOptions.retries,
-        retries = _getRequestOptions$re === undefined ? 3 : _getRequestOptions$re,
-        _getRequestOptions$re2 = _getRequestOptions.retryCondition,
-        retryCondition = _getRequestOptions$re2 === undefined ? isNetworkOrIdempotentRequestError : _getRequestOptions$re2,
-        _getRequestOptions$re3 = _getRequestOptions.retryDelay,
-        retryDelay = _getRequestOptions$re3 === undefined ? noDelay : _getRequestOptions$re3,
-        _getRequestOptions$sh = _getRequestOptions.shouldResetTimeout,
-        shouldResetTimeout = _getRequestOptions$sh === undefined ? false : _getRequestOptions$sh;
-
-    var currentState = getCurrentState(config);
-
-    var shouldRetry = retryCondition(error) && currentState.retryCount < retries;
-
-    if (shouldRetry) {
-      currentState.retryCount += 1;
-      var delay = retryDelay(currentState.retryCount, error);
-
-      // Axios fails merging this configuration to the default configuration because it has an issue
-      // with circular structures: https://github.com/mzabriskie/axios/issues/370
-      fixConfig(axios, config);
-
-      if (!shouldResetTimeout && config.timeout && currentState.lastRequestTime) {
-        var lastRequestDuration = Date.now() - currentState.lastRequestTime;
-        // Minimum 1ms timeout (passing 0 or less to XHR means no timeout)
-        config.timeout = Math.max(config.timeout - lastRequestDuration - delay, 1);
-      }
-
-      config.transformRequest = [function (data) {
-        return data;
-      }];
-
-      return new Promise(function (resolve) {
-        return setTimeout(function () {
-          return resolve(axios(config));
-        }, delay);
-      });
-    }
-
-    return Promise.reject(error);
-  });
-}
-
-// Compatibility with CommonJS
-axiosRetry.isNetworkError = isNetworkError;
-axiosRetry.isSafeRequestError = isSafeRequestError;
-axiosRetry.isIdempotentRequestError = isIdempotentRequestError;
-axiosRetry.isNetworkOrIdempotentRequestError = isNetworkOrIdempotentRequestError;
-axiosRetry.exponentialDelay = exponentialDelay;
-axiosRetry.isRetryableError = isRetryableError;
-//# sourceMappingURL=index.js.map
-
-/***/ }),
-
 /***/ 747:
 /***/ (function(module) {
 
@@ -13566,76 +13302,6 @@ module.exports = function mergeConfig(config1, config2) {
 /***/ (function(module) {
 
 module.exports = require("url");
-
-/***/ }),
-
-/***/ 841:
-/***/ (function(module) {
-
-"use strict";
-
-
-var WHITELIST = [
-	'ETIMEDOUT',
-	'ECONNRESET',
-	'EADDRINUSE',
-	'ESOCKETTIMEDOUT',
-	'ECONNREFUSED',
-	'EPIPE',
-	'EHOSTUNREACH',
-	'EAI_AGAIN'
-];
-
-var BLACKLIST = [
-	'ENOTFOUND',
-	'ENETUNREACH',
-
-	// SSL errors from https://github.com/nodejs/node/blob/ed3d8b13ee9a705d89f9e0397d9e96519e7e47ac/src/node_crypto.cc#L1950
-	'UNABLE_TO_GET_ISSUER_CERT',
-	'UNABLE_TO_GET_CRL',
-	'UNABLE_TO_DECRYPT_CERT_SIGNATURE',
-	'UNABLE_TO_DECRYPT_CRL_SIGNATURE',
-	'UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY',
-	'CERT_SIGNATURE_FAILURE',
-	'CRL_SIGNATURE_FAILURE',
-	'CERT_NOT_YET_VALID',
-	'CERT_HAS_EXPIRED',
-	'CRL_NOT_YET_VALID',
-	'CRL_HAS_EXPIRED',
-	'ERROR_IN_CERT_NOT_BEFORE_FIELD',
-	'ERROR_IN_CERT_NOT_AFTER_FIELD',
-	'ERROR_IN_CRL_LAST_UPDATE_FIELD',
-	'ERROR_IN_CRL_NEXT_UPDATE_FIELD',
-	'OUT_OF_MEM',
-	'DEPTH_ZERO_SELF_SIGNED_CERT',
-	'SELF_SIGNED_CERT_IN_CHAIN',
-	'UNABLE_TO_GET_ISSUER_CERT_LOCALLY',
-	'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
-	'CERT_CHAIN_TOO_LONG',
-	'CERT_REVOKED',
-	'INVALID_CA',
-	'PATH_LENGTH_EXCEEDED',
-	'INVALID_PURPOSE',
-	'CERT_UNTRUSTED',
-	'CERT_REJECTED'
-];
-
-module.exports = function (err) {
-	if (!err || !err.code) {
-		return true;
-	}
-
-	if (WHITELIST.indexOf(err.code) !== -1) {
-		return true;
-	}
-
-	if (BLACKLIST.indexOf(err.code) !== -1) {
-		return false;
-	}
-
-	return true;
-};
-
 
 /***/ }),
 

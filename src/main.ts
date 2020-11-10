@@ -1,9 +1,5 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
-import yaml from 'js-yaml'
-import axios from 'axios'
-import compareVersions, {compare} from 'compare-versions'
-import axiosRetry from 'axios-retry'
 import multimatch from 'multimatch'
 import md5 from 'md5'
 import * as argocd from './argocd'
@@ -45,23 +41,21 @@ async function run(): Promise<void> {
     const filePatterns = ['.argocd**.yml']
     const baseBranchName = 'master'
     const headBranchNamePrefix = 'argocd-app-update'
-    const ctx = {owner: org, repo: repo}
+    const ctx = {owner: org, repo}
 
     // Find if the repo has files that match the defined pattern
-    const {data: refData} = await octokit.git.getRef({
+    const {data: refData1} = await octokit.git.getRef({
       ...ctx,
       ref: `heads/${baseBranchName}`
     })
     const getTreeResponse = await octokit.git.getTree({
       ...ctx,
-      tree_sha: refData.object.sha,
+      tree_sha: refData1.object.sha,
       recursive: 'true'
     })
 
     const treeItems = (getTreeResponse.data?.tree || []).filter(function (
-      element,
-      index,
-      array
+      element
     ) {
       return multimatch([element.path], filePatterns).length > 0
     })
@@ -79,7 +73,7 @@ async function run(): Promise<void> {
         branchExists = true
       } catch (error) {
         // Bubble up if its not branch not found error.
-        if (error.status != 404) {
+        if (error.status !== 404) {
           throw error
         }
       }
@@ -108,14 +102,14 @@ async function run(): Promise<void> {
       // Update required, create branch if it doesn't exist
       if (!branchExists) {
         core.debug(`Branch missing, creating branch ${headBranchName}`)
-        const {data: refData} = await octokit.git.getRef({
+        const {data: refData2} = await octokit.git.getRef({
           ...ctx,
           ref: `heads/${baseBranchName}`
         })
         await octokit.git.createRef({
           ...ctx,
           ref: `refs/heads/${headBranchName}`,
-          sha: refData.object.sha
+          sha: refData2.object.sha
         })
       }
 
@@ -153,7 +147,7 @@ async function run(): Promise<void> {
         branch: `refs/heads/${headBranchName}`
       })
 
-      let pullRequestBody = `
+      const pullRequestBody = `
 Bumps chart \`${app.spec.source.chart}\` from \`${app.spec.source.targetRevision}\` to \`${app.spec.source.newTargetRevision}\`.
 
 **⚠️ Important**
@@ -167,7 +161,7 @@ Please ensure you have done your due diligence before merging. The checklist bel
       core.debug(`Creating pull request`)
       await octokit.pulls.create({
         owner: org,
-        repo: repo,
+        repo,
         title: `build(chart): bump ${app.spec.source.chart} from ${app.spec.source.targetRevision} to ${app.spec.source.newTargetRevision}`,
         head: `refs/heads/${headBranchName}`,
         base: `refs/heads/${baseBranchName}`,
