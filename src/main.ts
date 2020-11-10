@@ -62,7 +62,7 @@ async function run(): Promise<void> {
 
     // Let's get to work and check those files
     for (const treeItem of treeItems) {
-      core.debug(`Processing file: ${treeItem.path}`)
+      core.info(`Processing file: ${treeItem.path}`)
 
       const headBranchName = `${headBranchNamePrefix}-${md5(treeItem.path)}`
 
@@ -90,7 +90,7 @@ async function run(): Promise<void> {
       const fileContent = Buffer.from(file.content, 'base64').toString('ascii')
       const app = await argocd.readFromString(fileContent)
 
-      core.debug(
+      core.info(
         `File ${file.path} uses chart ${app.spec.source.chart} version ${app.spec.source.targetRevision}`
       )
 
@@ -101,7 +101,7 @@ async function run(): Promise<void> {
 
       // Update required, create branch if it doesn't exist
       if (!branchExists) {
-        core.debug(`Branch missing, creating branch ${headBranchName}`)
+        core.info(`Branch missing, creating branch ${headBranchName}`)
         const {data: refData2} = await octokit.git.getRef({
           ...ctx,
           ref: `heads/${baseBranchName}`
@@ -122,20 +122,20 @@ async function run(): Promise<void> {
 
       let fileContent2 = Buffer.from(file2.content, 'base64').toString('ascii')
 
-      // core.debug(`Found ${file.path} containing chart ${app.spec.source.chart} with version ${app.spec.source.targetRevision}`)
-      // core.debug(`Fetching repo index from ${app.spec.source.repoURL}/index.yaml for chart ${app.spec.source.chart}`)
-      core.debug(
+      // core.info(`Found ${file.path} containing chart ${app.spec.source.chart} with version ${app.spec.source.targetRevision}`)
+      // core.info(`Fetching repo index from ${app.spec.source.repoURL}/index.yaml for chart ${app.spec.source.chart}`)
+      core.info(
         `Latest version for chart ${app.spec.source.chart} in index is ${app.spec.source.newTargetRevision}`
       )
 
-      // core.debug(`Skipping chart ${app.spec.source.chart}, no newer version available.`)
+      // core.info(`Skipping chart ${app.spec.source.chart}, no newer version available.`)
 
       fileContent2 = fileContent2.replace(
         `targetRevision: ${app.spec.source.targetRevision}`,
         `targetRevision: ${app.spec.source.newTargetRevision}`
       )
 
-      core.debug(
+      core.info(
         `build(chart): bump ${app.spec.source.chart} from ${app.spec.source.targetRevision} to ${app.spec.source.newTargetRevision}`
       )
       await octokit.repos.createOrUpdateFileContents({
@@ -158,7 +158,7 @@ Please ensure you have done your due diligence before merging. The checklist bel
 - [ ] Check the release log of the chart for breaking changes
       `.trim()
 
-      core.debug(`Creating pull request`)
+      core.info(`Creating pull request`)
       await octokit.pulls.create({
         owner: org,
         repo,
@@ -170,7 +170,7 @@ Please ensure you have done your due diligence before merging. The checklist bel
       })
     }
   } catch (error) {
-    core.debug(error)
+    core.info(error)
     core.setFailed(error.message)
   }
 }
