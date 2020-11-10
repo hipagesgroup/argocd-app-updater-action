@@ -2981,9 +2981,9 @@ function run() {
                     }
                 }
                 // Determine if update is required
-                const { data: file } = yield octokit.repos.getContent(Object.assign(Object.assign({}, ctx), { ref: branchExists
-                        ? `heads/${headBranchName}`
-                        : `heads/${baseBranchName}`, path: treeItem.path }));
+                const refUpdateBranch = branchExists ? `heads/${headBranchName}` : `heads/${baseBranchName}`;
+                core.info(`Determine if update is required from branch ${refUpdateBranch}`);
+                const { data: file } = yield octokit.repos.getContent(Object.assign(Object.assign({}, ctx), { ref: refUpdateBranch, path: treeItem.path }));
                 const fileContent = Buffer.from(file.content, 'base64').toString('ascii');
                 const app = yield argocd.readFromString(fileContent);
                 core.info(`File ${file.path} uses chart ${app.spec.source.chart} version ${app.spec.source.targetRevision}`);

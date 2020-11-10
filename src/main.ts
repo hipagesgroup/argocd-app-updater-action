@@ -79,11 +79,17 @@ async function run(): Promise<void> {
       }
 
       // Determine if update is required
+      const refUpdateBranch = branchExists
+        ? `heads/${headBranchName}`
+        : `heads/${baseBranchName}`
+
+      core.info(
+        `Determine if update is required from branch ${refUpdateBranch}`
+      )
+
       const {data: file} = await octokit.repos.getContent({
         ...ctx,
-        ref: branchExists
-          ? `heads/${headBranchName}`
-          : `heads/${baseBranchName}`,
+        ref: refUpdateBranch,
         path: treeItem.path
       })
 
