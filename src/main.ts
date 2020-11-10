@@ -62,7 +62,7 @@ async function run(): Promise<void> {
 
     // Let's get to work and check those files
     for (const treeItem of treeItems) {
-      core.info(`Processing file: ${treeItem.path}`)
+      core.startGroup(`Processing file: ${treeItem.path}`)
 
       const headBranchName = `${headBranchNamePrefix}-${md5(treeItem.path)}`
 
@@ -97,6 +97,7 @@ async function run(): Promise<void> {
       // If update is not required, continue with the next file
       if (!app.spec.source.newTargetRevision) {
         core.info(`Skipping ${file.path}, no newer version available.`)
+        core.endGroup()
         continue
       }
 
@@ -169,6 +170,8 @@ Please ensure you have done your due diligence before merging. The checklist bel
         body: pullRequestBody,
         maintainer_can_modify: true
       })
+
+      core.endGroup()
     }
   } catch (error) {
     core.info(error)

@@ -2966,7 +2966,7 @@ function run() {
             });
             // Let's get to work and check those files
             for (const treeItem of treeItems) {
-                core.info(`Processing file: ${treeItem.path}`);
+                core.startGroup(`Processing file: ${treeItem.path}`);
                 const headBranchName = `${headBranchNamePrefix}-${md5_1.default(treeItem.path)}`;
                 // Determine if the branch exists
                 let branchExists = false;
@@ -2990,6 +2990,7 @@ function run() {
                 // If update is not required, continue with the next file
                 if (!app.spec.source.newTargetRevision) {
                     core.info(`Skipping ${file.path}, no newer version available.`);
+                    core.endGroup();
                     continue;
                 }
                 // Update required, create branch if it doesn't exist
@@ -3028,6 +3029,7 @@ Please ensure you have done your due diligence before merging. The checklist bel
                     body: pullRequestBody,
                     maintainer_can_modify: true
                 });
+                core.endGroup();
             }
         }
         catch (error) {
