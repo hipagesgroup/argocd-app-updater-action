@@ -50,7 +50,7 @@ async function run(): Promise<void> {
 
     // Find if the repo has files that match the defined pattern
     const { data: refData } = await octokit.git.getRef({ ...ctx, ref: `heads/${baseBranchName}` })
-    const getTreeResponse = await octokit.git.getTree({ ...ctx, tree_sha: refData.object.sha })
+    const getTreeResponse = await octokit.git.getTree({ ...ctx, tree_sha: refData.object.sha, recursive: "true" })
 
     const treeItems = (getTreeResponse.data?.tree || []).filter(function (element, index, array) {
       return multimatch([element.path], filePatterns).length > 0
@@ -59,6 +59,7 @@ async function run(): Promise<void> {
     // Let's get to work and check those files
     for (const treeItem of treeItems) {
       core.debug(`Processing file: ${treeItem.path}`)
+      continue
 
       const headBranchName = `${headBranchNamePrefix}-${md5(treeItem.path)}`
 
