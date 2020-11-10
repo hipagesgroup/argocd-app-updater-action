@@ -2,9 +2,9 @@ name: 'ArgoCD Application Updater'
 description: 'Provide a description here'
 author: 'hipages'
 inputs:
-  github-token:
-    description: 'GitHub token being used to create pull requests.'
-    required: false
+  # repo-token:
+  #   description: 'GitHub token being used to create pull requests.'
+  #   required: true
   files:
     description: 'Files containing the application manifest'
     default: '.argocd**.y*ml'
