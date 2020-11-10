@@ -1,1 +1,8 @@
-branches: main
+---
+verifyConditions: ['@semantic-release/github']
+prepare: []
+publish: []
+success: ['@semantic-release/github']
+fail: ['@semantic-release/github']
+branch: ['main']
+dryRun: true
