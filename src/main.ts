@@ -2,7 +2,7 @@ import * as core from '@actions/core'
 import * as github from '@actions/github'
 import yaml from 'js-yaml'
 import axios from 'axios'
-import compareVersions, { compare } from 'compare-versions'
+import compareVersions, {compare} from 'compare-versions'
 import axiosRetry from 'axios-retry'
 import multimatch from 'multimatch'
 import md5 from 'md5'
@@ -36,23 +36,33 @@ import * as argocd from './argocd'
 // 3. If yes, create a branch for that app and update the file (e.g. argocd-app-update/<filename-hash>)
 // 4. rinse repeat
 
-
 async function run(): Promise<void> {
   try {
     // const token = core.getInput("github-token", { required: true });
     const octokit = github.getOctokit(process.env.GITHUB_TOKEN || '')
-    const org = "hipagesgroup"
-    const repo = "salesforce-syncer"
+    const org = 'hipagesgroup'
+    const repo = 'salesforce-syncer'
     const filePatterns = ['.argocd**.yml']
-    const baseBranchName = "master"
-    const headBranchNamePrefix = "argocd-app-update"
-    const ctx = { owner: org, repo: repo }
+    const baseBranchName = 'master'
+    const headBranchNamePrefix = 'argocd-app-update'
+    const ctx = {owner: org, repo: repo}
 
     // Find if the repo has files that match the defined pattern
-    const { data: refData } = await octokit.git.getRef({ ...ctx, ref: `heads/${baseBranchName}` })
-    const getTreeResponse = await octokit.git.getTree({ ...ctx, tree_sha: refData.object.sha, recursive: "true" })
+    const {data: refData} = await octokit.git.getRef({
+      ...ctx,
+      ref: `heads/${baseBranchName}`
+    })
+    const getTreeResponse = await octokit.git.getTree({
+      ...ctx,
+      tree_sha: refData.object.sha,
+      recursive: 'true'
+    })
 
-    const treeItems = (getTreeResponse.data?.tree || []).filter(function (element, index, array) {
+    const treeItems = (getTreeResponse.data?.tree || []).filter(function (
+      element,
+      index,
+      array
+    ) {
       return multimatch([element.path], filePatterns).length > 0
     })
 
@@ -65,7 +75,7 @@ async function run(): Promise<void> {
       // Determine if the branch exists
       let branchExists = false
       try {
-        await octokit.git.getRef({ ...ctx, ref: `heads/${headBranchName}` })
+        await octokit.git.getRef({...ctx, ref: `heads/${headBranchName}`})
         branchExists = true
       } catch (error) {
         // Bubble up if its not branch not found error.
@@ -75,16 +85,20 @@ async function run(): Promise<void> {
       }
 
       // Determine if update is required
-      const { data: file } = await octokit.repos.getContent({
+      const {data: file} = await octokit.repos.getContent({
         ...ctx,
-        ref: branchExists ? `heads/${headBranchName}` : `heads/${baseBranchName}`,
-        path: treeItem.path,
+        ref: branchExists
+          ? `heads/${headBranchName}`
+          : `heads/${baseBranchName}`,
+        path: treeItem.path
       })
 
       const fileContent = Buffer.from(file.content, 'base64').toString('ascii')
       const app = await argocd.readFromString(fileContent)
 
-      core.debug(`File ${file.path} uses chart ${app.spec.source.chart} version ${app.spec.source.targetRevision}`)
+      core.debug(
+        `File ${file.path} uses chart ${app.spec.source.chart} version ${app.spec.source.targetRevision}`
+      )
 
       // If update is not required, continue with the next file
       if (!app.spec.source.newTargetRevision) {
@@ -94,28 +108,42 @@ async function run(): Promise<void> {
       // Update required, create branch if it doesn't exist
       if (!branchExists) {
         core.debug(`Branch missing, creating branch ${headBranchName}`)
-        const { data: refData } = await octokit.git.getRef({ ...ctx, ref: `heads/${baseBranchName}` })
-        await octokit.git.createRef({ ...ctx, ref: `refs/heads/${headBranchName}`, sha: refData.object.sha })
+        const {data: refData} = await octokit.git.getRef({
+          ...ctx,
+          ref: `heads/${baseBranchName}`
+        })
+        await octokit.git.createRef({
+          ...ctx,
+          ref: `refs/heads/${headBranchName}`,
+          sha: refData.object.sha
+        })
       }
 
       // Get file from head branch, in case it did exists
-      const { data: file2 } = await octokit.repos.getContent({
+      const {data: file2} = await octokit.repos.getContent({
         ...ctx,
         ref: `heads/${headBranchName}`,
-        path: treeItem.path,
+        path: treeItem.path
       })
 
       let fileContent2 = Buffer.from(file2.content, 'base64').toString('ascii')
 
       // core.debug(`Found ${file.path} containing chart ${app.spec.source.chart} with version ${app.spec.source.targetRevision}`)
       // core.debug(`Fetching repo index from ${app.spec.source.repoURL}/index.yaml for chart ${app.spec.source.chart}`)
-      core.debug(`Latest version for chart ${app.spec.source.chart} in index is ${app.spec.source.newTargetRevision}`)
+      core.debug(
+        `Latest version for chart ${app.spec.source.chart} in index is ${app.spec.source.newTargetRevision}`
+      )
 
-        // core.debug(`Skipping chart ${app.spec.source.chart}, no newer version available.`)
+      // core.debug(`Skipping chart ${app.spec.source.chart}, no newer version available.`)
 
-      fileContent2 = fileContent2.replace(`targetRevision: ${app.spec.source.targetRevision}`, `targetRevision: ${app.spec.source.newTargetRevision}`)
+      fileContent2 = fileContent2.replace(
+        `targetRevision: ${app.spec.source.targetRevision}`,
+        `targetRevision: ${app.spec.source.newTargetRevision}`
+      )
 
-      core.debug(`build(chart): bump ${app.spec.source.chart} from ${app.spec.source.targetRevision} to ${app.spec.source.newTargetRevision}`)
+      core.debug(
+        `build(chart): bump ${app.spec.source.chart} from ${app.spec.source.targetRevision} to ${app.spec.source.newTargetRevision}`
+      )
       await octokit.repos.createOrUpdateFileContents({
         ...ctx,
         path: file2.path,
