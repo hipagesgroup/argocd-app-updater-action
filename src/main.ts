@@ -59,7 +59,6 @@ async function run(): Promise<void> {
     // Let's get to work and check those files
     for (const treeItem of treeItems) {
       core.debug(`Processing file: ${treeItem.path}`)
-      continue
 
       const headBranchName = `${headBranchNamePrefix}-${md5(treeItem.path)}`
 
@@ -84,6 +83,8 @@ async function run(): Promise<void> {
 
       const fileContent = Buffer.from(file.content, 'base64').toString('ascii')
       const app = await argocd.readFromString(fileContent)
+
+      core.debug(`File ${file.path} uses chart ${app.spec.source.chart} version ${app.spec.source.targetRevision}`)
 
       // If update is not required, continue with the next file
       if (!app.spec.source.newTargetRevision) {
