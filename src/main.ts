@@ -45,7 +45,10 @@ async function run(): Promise<void> {
       // Determine if the branch exists
       let branchExists = false
       try {
-        await octokit.git.getRef({...context.repo, ref: `heads/${headBranchName}`})
+        await octokit.git.getRef({
+          ...context.repo,
+          ref: `heads/${headBranchName}`
+        })
         branchExists = true
       } catch (error) {
         // Bubble up if its not branch not found error.
@@ -144,8 +147,7 @@ Please ensure you have done your due diligence before merging. The checklist bel
 
       core.info(`Creating pull request`)
       await octokit.pulls.create({
-        owner: org,
-        repo,
+        ...context.repo,
         title: `build(chart): bump ${app.spec.source.chart} from ${app.spec.source.targetRevision} to ${app.spec.source.newTargetRevision}`,
         head: `refs/heads/${headBranchName}`,
         base: `refs/heads/${baseBranchName}`,
