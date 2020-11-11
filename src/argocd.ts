@@ -1,21 +1,21 @@
 import yaml from 'js-yaml'
-import axios, {AxiosResponse} from 'axios'
+import axios, {AxiosInstance, AxiosResponse} from 'axios'
 // import axiosRetry from 'axios-retry'
 import compareVersions from 'compare-versions'
 
-export type Application = {
+export interface Application {
   spec: {
     source: {
       repoURL: string
       chart: string
       targetRevision: string
       // TODO: name ok?
-      newTargetRevision: string
+      newTargetRevision?: string
     }
   }
 }
 
-export type VersionInfo = {
+export interface VersionInfo {
   type: string // semver, git
   revisionFrom: string
   revisionTo: string
@@ -26,6 +26,8 @@ export type VersionInfo = {
 //     let app: Application = <Application>{};
 //     return app
 // }
+
+export const httpClient: AxiosInstance = axios.create()
 
 export async function readFromString(data: string): Promise<Application> {
   // TODO: handle failures, e.g. if yaml cant be used regex parse the structure
@@ -43,8 +45,19 @@ export async function readFromString(data: string): Promise<Application> {
 }
 
 export async function newerRevision(app: Application): Promise<string> {
-  const index = await helmRepoIndex(`${app.spec.source.repoURL}/index.yaml`)
-  const newTargetRevision = index.entries[app.spec.source.chart][0].version
+  const {entries = {}} = await helmRepoIndex(
+    `${app.spec.source.repoURL}/index.yaml`
+  )
+
+  // Verify that a chart entry exists
+  if (
+    !(app.spec.source.chart in entries) ||
+    entries[app.spec.source.chart].length === 0
+  ) {
+    return ''
+  }
+
+  const newTargetRevision = entries[app.spec.source.chart][0].version
 
   // Verify that both targetRevision and newTargetRevision are semver compliant.
   if (
@@ -68,7 +81,7 @@ export async function newerRevision(app: Application): Promise<string> {
   return newTargetRevision
 }
 
-const HelmChartRepositories: Record<
+export const HelmChartRepositories: Record<
   string,
   Promise<HelmChartRepositoryIndex>
 > = {}
@@ -92,9 +105,14 @@ export async function helmRepoIndex(
     // TODO: revisit
     // axiosRetry(axios, {retries: 3, retryCondition: axiosRetry.isRetryableError})
 
-    const result: AxiosResponse = await axios.get(url)
+    try {
+      // const result: AxiosResponse = await axios.get(url)
+      const result: AxiosResponse = await httpClient.get(url)
 
-    return yaml.safeLoad(result.data) as HelmChartRepositoryIndex
+      return yaml.safeLoad(result.data) as HelmChartRepositoryIndex
+    } catch (error) {
+      return {} as HelmChartRepositoryIndex
+    }
   })()
 
   return HelmChartRepositories[url]
