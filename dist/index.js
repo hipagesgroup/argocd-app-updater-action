@@ -7,20 +7,11 @@ require('./sourcemap-register.js');module.exports =
 
 "use strict";
 
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.helmRepoIndex = exports.HelmChartRepositories = exports.newerRevision = exports.readFromString = exports.httpClient = void 0;
+exports.helmRepoIndex = exports.HelmChartRepositories = exports.newerRevision = exports.readFromString = exports.applicationReader = exports.bestEffortReader = exports.yamlReader = exports.ApplicationReaderException = exports.httpClient = void 0;
 const js_yaml_1 = __importDefault(__webpack_require__(1917));
 const axios_1 = __importDefault(__webpack_require__(6545));
 // import axiosRetry from 'axios-retry'
@@ -30,62 +21,105 @@ const compare_versions_1 = __importDefault(__webpack_require__(9296));
 //     return app
 // }
 exports.httpClient = axios_1.default.create();
-function readFromString(data) {
-    return __awaiter(this, void 0, void 0, function* () {
-        // TODO: handle failures, e.g. if yaml cant be used regex parse the structure
-        const app = js_yaml_1.default.safeLoad(data);
-        // Remove trailing slash
-        if (app.spec.source.repoURL.substr(-1) === '/') {
-            app.spec.source.repoURL = app.spec.source.repoURL.slice(0, -1);
+class ApplicationReaderException extends Error {
+}
+exports.ApplicationReaderException = ApplicationReaderException;
+// Reads a string in YAML format and returns an ArgoCD application
+exports.yamlReader = (data) => {
+    return js_yaml_1.default.safeLoad(data);
+};
+// Reads a string in unknown format and returns an ArgoCD application
+exports.bestEffortReader = (data) => {
+    // TODO: Ideally we should check for the following:
+    // - contains "apiVersion: argoproj.io/v1alpha1"
+    // - contains "kind: Application"
+    const regexp = /(?<key>repoURL|chart|targetRevision): (?<value>.+)/g;
+    const matches = data.matchAll(regexp);
+    const app = {
+        spec: { source: { repoURL: '', chart: '', targetRevision: '' } }
+    };
+    // TODO: Figure out how to use named captured groups
+    for (const match of matches) {
+        switch (match[1]) {
+            case 'repoURL':
+                app.spec.source.repoURL = match[2].replace(/^['"](.+)['"]$/, '$1');
+                break;
+            case 'chart':
+                app.spec.source.chart = match[2];
+                break;
+            case 'targetRevision':
+                app.spec.source.targetRevision = match[2];
+                break;
         }
-        // TODO: Should this be done here?
-        app.spec.source.newTargetRevision = yield newerRevision(app);
-        return app;
-    });
+    }
+    if (app.spec.source.repoURL === '' ||
+        app.spec.source.chart === '' ||
+        app.spec.source.targetRevision === '') {
+        throw new ApplicationReaderException('ApplicationReaderException: Unable to read application manifest.');
+    }
+    return app;
+};
+exports.applicationReader = (data) => {
+    for (const reader of [exports.yamlReader, exports.bestEffortReader]) {
+        try {
+            return reader(data);
+        }
+        catch (error) {
+            continue;
+        }
+    }
+    throw new ApplicationReaderException('ApplicationReaderException: Unable to read application manifest.');
+};
+async function readFromString(data) {
+    // TODO: handle failures, e.g. if yaml cant be used regex parse the structure
+    const app = exports.applicationReader(data);
+    // Remove trailing slash
+    if (app.spec.source.repoURL.substr(-1) === '/') {
+        app.spec.source.repoURL = app.spec.source.repoURL.slice(0, -1);
+    }
+    // TODO: Should this be done here?
+    app.spec.source.newTargetRevision = await newerRevision(app);
+    return app;
 }
 exports.readFromString = readFromString;
-function newerRevision(app) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { entries = {} } = yield helmRepoIndex(`${app.spec.source.repoURL}/index.yaml`);
-        // Verify that a chart entry exists
-        if (!(app.spec.source.chart in entries) ||
-            entries[app.spec.source.chart].length === 0) {
-            return '';
-        }
-        const newTargetRevision = entries[app.spec.source.chart][0].version;
-        // Verify that both targetRevision and newTargetRevision are semver compliant.
-        if (!compare_versions_1.default.validate(newTargetRevision) ||
-            !compare_versions_1.default.validate(app.spec.source.targetRevision)) {
-            return '';
-        }
-        // Continue only if a new version is available
-        if (compare_versions_1.default.compare(newTargetRevision, app.spec.source.targetRevision, '<=')) {
-            return '';
-        }
-        return newTargetRevision;
-    });
+async function newerRevision(app) {
+    const { entries = {} } = await helmRepoIndex(`${app.spec.source.repoURL}/index.yaml`);
+    // Verify that a chart entry exists
+    if (!(app.spec.source.chart in entries) ||
+        entries[app.spec.source.chart].length === 0) {
+        return '';
+    }
+    const newTargetRevision = entries[app.spec.source.chart][0].version;
+    // Verify that both targetRevision and newTargetRevision are semver compliant.
+    if (!compare_versions_1.default.validate(newTargetRevision) ||
+        !compare_versions_1.default.validate(app.spec.source.targetRevision)) {
+        return '';
+    }
+    // Continue only if a new version is available
+    if (compare_versions_1.default.compare(newTargetRevision, app.spec.source.targetRevision, '<=')) {
+        return '';
+    }
+    return newTargetRevision;
 }
 exports.newerRevision = newerRevision;
 exports.HelmChartRepositories = {};
-function helmRepoIndex(url) {
-    return __awaiter(this, void 0, void 0, function* () {
-        if (exports.HelmChartRepositories[url]) {
-            return exports.HelmChartRepositories[url];
-        }
-        exports.HelmChartRepositories[url] = (() => __awaiter(this, void 0, void 0, function* () {
-            // TODO: revisit
-            // axiosRetry(axios, {retries: 3, retryCondition: axiosRetry.isRetryableError})
-            try {
-                // const result: AxiosResponse = await axios.get(url)
-                const result = yield exports.httpClient.get(url);
-                return js_yaml_1.default.safeLoad(result.data);
-            }
-            catch (error) {
-                return {};
-            }
-        }))();
+async function helmRepoIndex(url) {
+    if (exports.HelmChartRepositories[url]) {
         return exports.HelmChartRepositories[url];
-    });
+    }
+    exports.HelmChartRepositories[url] = (async () => {
+        // TODO: revisit
+        // axiosRetry(axios, {retries: 3, retryCondition: axiosRetry.isRetryableError})
+        try {
+            // const result: AxiosResponse = await axios.get(url)
+            const result = await exports.httpClient.get(url);
+            return js_yaml_1.default.safeLoad(result.data);
+        }
+        catch (error) {
+            return {};
+        }
+    })();
+    return exports.HelmChartRepositories[url];
 }
 exports.helmRepoIndex = helmRepoIndex;
 
@@ -97,112 +131,116 @@ exports.helmRepoIndex = helmRepoIndex;
 
 "use strict";
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const core = __importStar(__webpack_require__(2186));
-const github = __importStar(__webpack_require__(5438));
+const core_1 = __webpack_require__(2186);
+const github_1 = __webpack_require__(5438);
 const multimatch_1 = __importDefault(__webpack_require__(8222));
 const md5_1 = __importDefault(__webpack_require__(1711));
-const argocd = __importStar(__webpack_require__(7397));
+const argocd_1 = __webpack_require__(7397);
 // 1. Read from default branch to find if ArgoCD files exists
 // 2. If yes, check if ArgoCD app is helm chart and requires update
 // 3. If yes, create a branch for that app and update the file (e.g. argocd-app-update/<filename-hash>)
 // 4. rinse repeat
-function run() {
+async function run() {
     var _a, _b;
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const token = process.env.GITHUB_TOKEN || '';
-            const octokit = github.getOctokit(token);
-            const context = github.context;
-            const filePatterns = ['.argocd**.yml'];
-            const repoInfo = yield octokit.repos.get(context.repo);
-            const baseBranchName = (_a = repoInfo.data) === null || _a === void 0 ? void 0 : _a.default_branch;
-            const headBranchNamePrefix = 'argocd-app-update';
-            // Find if the repo has files that match the defined pattern
-            const { data: refData1 } = yield octokit.git.getRef(Object.assign(Object.assign({}, context.repo), { ref: `heads/${baseBranchName}` }));
-            const getTreeResponse = yield octokit.git.getTree(Object.assign(Object.assign({}, context.repo), { tree_sha: refData1.object.sha, recursive: 'true' }));
-            const treeItems = (((_b = getTreeResponse.data) === null || _b === void 0 ? void 0 : _b.tree) || []).filter(function (element) {
-                return multimatch_1.default([element.path], filePatterns).length > 0;
+    try {
+        const token = process.env.GITHUB_TOKEN || '';
+        const octokit = github_1.getOctokit(token);
+        const context = github_1.context;
+        const filePatterns = ['.argocd**.yml'];
+        const repoInfo = await octokit.repos.get(context.repo);
+        const baseBranchName = (_a = repoInfo.data) === null || _a === void 0 ? void 0 : _a.default_branch;
+        const headBranchNamePrefix = 'argocd-app-update';
+        // Find if the repo has files that match the defined pattern
+        const { data: refData1 } = await octokit.git.getRef({
+            ...context.repo,
+            ref: `heads/${baseBranchName}`
+        });
+        const getTreeResponse = await octokit.git.getTree({
+            ...context.repo,
+            // eslint-disable-next-line camelcase
+            tree_sha: refData1.object.sha,
+            recursive: 'true'
+        });
+        const treeItems = (((_b = getTreeResponse.data) === null || _b === void 0 ? void 0 : _b.tree) || []).filter(function (element) {
+            return multimatch_1.default([element.path], filePatterns).length > 0;
+        });
+        // Let's get to work and check those files
+        for (const treeItem of treeItems) {
+            core_1.startGroup(`Processing file: ${treeItem.path}`);
+            const headBranchName = `${headBranchNamePrefix}-${md5_1.default(treeItem.path)}`;
+            // Determine if the branch exists
+            let branchExists = false;
+            try {
+                await octokit.git.getRef({
+                    ...context.repo,
+                    ref: `heads/${headBranchName}`
+                });
+                branchExists = true;
+            }
+            catch (error) {
+                // Bubble up if its not branch not found error.
+                if (error.status !== 404) {
+                    throw error;
+                }
+            }
+            // Determine if update is required
+            const refUpdateBranch = branchExists
+                ? `heads/${headBranchName}`
+                : `heads/${baseBranchName}`;
+            core_1.info(`Determine if update is required from branch ${refUpdateBranch}`);
+            const { data: file } = await octokit.repos.getContent({
+                ...context.repo,
+                ref: refUpdateBranch,
+                path: treeItem.path
             });
-            // Let's get to work and check those files
-            for (const treeItem of treeItems) {
-                core.startGroup(`Processing file: ${treeItem.path}`);
-                const headBranchName = `${headBranchNamePrefix}-${md5_1.default(treeItem.path)}`;
-                // Determine if the branch exists
-                let branchExists = false;
-                try {
-                    yield octokit.git.getRef(Object.assign(Object.assign({}, context.repo), { ref: `heads/${headBranchName}` }));
-                    branchExists = true;
-                }
-                catch (error) {
-                    // Bubble up if its not branch not found error.
-                    if (error.status !== 404) {
-                        throw error;
-                    }
-                }
-                // Determine if update is required
-                const refUpdateBranch = branchExists
-                    ? `heads/${headBranchName}`
-                    : `heads/${baseBranchName}`;
-                core.info(`Determine if update is required from branch ${refUpdateBranch}`);
-                const { data: file } = yield octokit.repos.getContent(Object.assign(Object.assign({}, context.repo), { ref: refUpdateBranch, path: treeItem.path }));
-                const fileContent = Buffer.from(file.content, 'base64').toString('ascii');
-                const app = yield argocd.readFromString(fileContent);
-                core.info(`File ${file.path} uses chart ${app.spec.source.chart} version ${app.spec.source.targetRevision}`);
-                // If update is not required, continue with the next file
-                if (!app.spec.source.newTargetRevision) {
-                    core.info(`Skipping ${file.path}, no newer version available.`);
-                    core.endGroup();
-                    continue;
-                }
-                // Update required, create branch if it doesn't exist
-                if (!branchExists) {
-                    core.info(`Branch missing, creating branch ${headBranchName}`);
-                    const { data: refData2 } = yield octokit.git.getRef(Object.assign(Object.assign({}, context.repo), { ref: `heads/${baseBranchName}` }));
-                    yield octokit.git.createRef(Object.assign(Object.assign({}, context.repo), { ref: `refs/heads/${headBranchName}`, sha: refData2.object.sha }));
-                }
-                // Get file from head branch, in case it did exists
-                const { data: file2 } = yield octokit.repos.getContent(Object.assign(Object.assign({}, context.repo), { ref: `heads/${headBranchName}`, path: treeItem.path }));
-                let fileContent2 = Buffer.from(file2.content, 'base64').toString('ascii');
-                // core.info(`Found ${file.path} containing chart ${app.spec.source.chart} with version ${app.spec.source.targetRevision}`)
-                // core.info(`Fetching repo index from ${app.spec.source.repoURL}/index.yaml for chart ${app.spec.source.chart}`)
-                core.info(`Latest version for chart ${app.spec.source.chart} in index is ${app.spec.source.newTargetRevision}`);
-                // core.info(`Skipping chart ${app.spec.source.chart}, no newer version available.`)
-                fileContent2 = fileContent2.replace(`targetRevision: ${app.spec.source.targetRevision}`, `targetRevision: ${app.spec.source.newTargetRevision}`);
-                core.info(`build(chart): bump ${app.spec.source.chart} from ${app.spec.source.targetRevision} to ${app.spec.source.newTargetRevision}`);
-                yield octokit.repos.createOrUpdateFileContents(Object.assign(Object.assign({}, context.repo), { path: file2.path, message: `build(chart): bump ${app.spec.source.chart} from ${app.spec.source.targetRevision} to ${app.spec.source.newTargetRevision}`, content: Buffer.from(fileContent2, 'ascii').toString('base64'), sha: file2.sha, branch: `refs/heads/${headBranchName}` }));
-                const pullRequestBody = `
+            const fileContent = Buffer.from(file.content, 'base64').toString('ascii');
+            const app = await argocd_1.readFromString(fileContent);
+            core_1.info(`File ${file.path} uses chart ${app.spec.source.chart} version ${app.spec.source.targetRevision}`);
+            // If update is not required, continue with the next file
+            if (!app.spec.source.newTargetRevision) {
+                core_1.info(`Skipping ${file.path}, no newer version available.`);
+                core_1.endGroup();
+                continue;
+            }
+            // Update required, create branch if it doesn't exist
+            if (!branchExists) {
+                core_1.info(`Branch missing, creating branch ${headBranchName}`);
+                const { data: refData2 } = await octokit.git.getRef({
+                    ...context.repo,
+                    ref: `heads/${baseBranchName}`
+                });
+                await octokit.git.createRef({
+                    ...context.repo,
+                    ref: `refs/heads/${headBranchName}`,
+                    sha: refData2.object.sha
+                });
+            }
+            // Get file from head branch, in case it did exists
+            const { data: file2 } = await octokit.repos.getContent({
+                ...context.repo,
+                ref: `heads/${headBranchName}`,
+                path: treeItem.path
+            });
+            let fileContent2 = Buffer.from(file2.content, 'base64').toString('ascii');
+            // core.info(`Found ${file.path} containing chart ${app.spec.source.chart} with version ${app.spec.source.targetRevision}`)
+            // core.info(`Fetching repo index from ${app.spec.source.repoURL}/index.yaml for chart ${app.spec.source.chart}`)
+            core_1.info(`Latest version for chart ${app.spec.source.chart} in index is ${app.spec.source.newTargetRevision}`);
+            // core.info(`Skipping chart ${app.spec.source.chart}, no newer version available.`)
+            fileContent2 = fileContent2.replace(`targetRevision: ${app.spec.source.targetRevision}`, `targetRevision: ${app.spec.source.newTargetRevision}`);
+            core_1.info(`build(chart): bump ${app.spec.source.chart} from ${app.spec.source.targetRevision} to ${app.spec.source.newTargetRevision}`);
+            await octokit.repos.createOrUpdateFileContents({
+                ...context.repo,
+                path: file2.path,
+                message: `build(chart): bump ${app.spec.source.chart} from ${app.spec.source.targetRevision} to ${app.spec.source.newTargetRevision}`,
+                content: Buffer.from(fileContent2, 'ascii').toString('base64'),
+                sha: file2.sha,
+                branch: `refs/heads/${headBranchName}`
+            });
+            const pullRequestBody = `
 Bumps chart \`${app.spec.source.chart}\` from \`${app.spec.source.targetRevision}\` to \`${app.spec.source.newTargetRevision}\`.
 
 **⚠️ Important**
@@ -212,16 +250,23 @@ Please ensure you have done your due diligence before merging. The checklist bel
 - [ ] Check the diff in ArgoCD and possibly adjust helm values if necessary
 - [ ] Check the release log of the chart for breaking changes
       `.trim();
-                core.info(`Creating pull request`);
-                yield octokit.pulls.create(Object.assign(Object.assign({}, context.repo), { title: `build(chart): bump ${app.spec.source.chart} from ${app.spec.source.targetRevision} to ${app.spec.source.newTargetRevision}`, head: `refs/heads/${headBranchName}`, base: `refs/heads/${baseBranchName}`, body: pullRequestBody, maintainer_can_modify: true }));
-                core.endGroup();
-            }
+            core_1.info(`Creating pull request`);
+            await octokit.pulls.create({
+                ...context.repo,
+                title: `build(chart): bump ${app.spec.source.chart} from ${app.spec.source.targetRevision} to ${app.spec.source.newTargetRevision}`,
+                head: `refs/heads/${headBranchName}`,
+                base: `refs/heads/${baseBranchName}`,
+                body: pullRequestBody,
+                // eslint-disable-next-line camelcase
+                maintainer_can_modify: true
+            });
+            core_1.endGroup();
         }
-        catch (error) {
-            core.info(error);
-            core.setFailed(error.message);
-        }
-    });
+    }
+    catch (error) {
+        core_1.info(error);
+        core_1.setFailed(error.message);
+    }
 }
 run();
 
