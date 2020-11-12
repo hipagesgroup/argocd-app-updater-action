@@ -44,8 +44,6 @@ export const bestEffortReader: ApplicationReader = (data: string) => {
   // - contains "kind: Application"
 
   const regexp = /(?<key>repoURL|chart|targetRevision): (?<value>.+)/g
-
-  type AdjustedRegex = RegExpExecArray & {groups: {}}
   const matches = data.matchAll(regexp)
 
   const app: Application = {

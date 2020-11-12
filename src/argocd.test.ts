@@ -1,5 +1,12 @@
 import {YAMLException} from 'js-yaml'
-import * as argocd from './argocd'
+import {
+  httpClient,
+  HelmChartRepositories,
+  readFromString,
+  yamlReader,
+  bestEffortReader,
+  ApplicationReaderException
+} from './argocd'
 
 // jest.mock('./argocd')
 
@@ -48,21 +55,21 @@ entries:
     version: 0.3.8
 `
 
-argocd.httpClient.get = jest.fn()
-const mockHttpClientGet = (argocd.httpClient.get as unknown) as jest.Mock // eslint-disable-line @typescript-eslint/unbound-method
+httpClient.get = jest.fn()
+const mockHttpClientGet = (httpClient.get as unknown) as jest.Mock
 
 describe('argocd', () => {
   beforeEach(() => {
     // We're caching repositories to avoid unecessary calls, but it interferes with testing.
-    Object.keys(argocd.HelmChartRepositories).map(
-      key => delete argocd.HelmChartRepositories[key]
+    Object.keys(HelmChartRepositories).map(
+      key => delete HelmChartRepositories[key]
     )
   })
 
   it('should load argo app via string', async () => {
     mockHttpClientGet.mockResolvedValueOnce({data: defaultRepositoryIndex})
 
-    const actual = await argocd.readFromString(defaultApplicationYAML)
+    const actual = await readFromString(defaultApplicationYAML)
     const expected: argocd.Application = {
       spec: {
         source: {
@@ -85,7 +92,7 @@ entries: {}
 
     mockHttpClientGet.mockResolvedValueOnce({data: emptyRepositoryIndex})
 
-    const actual = await argocd.readFromString(defaultApplicationYAML)
+    const actual = await readFromString(defaultApplicationYAML)
     const expected = {
       spec: {
         source: {
@@ -100,12 +107,12 @@ entries: {}
   })
 
   test('should strip trailing slash from spec.source.repoURL', async () => {
-    const actual = await argocd.readFromString(defaultApplicationYAML)
+    const actual = await readFromString(defaultApplicationYAML)
     expect(actual.spec.source.repoURL).not.toMatch(new RegExp('/$'))
   })
 
   it('yamlReader should load yaml successfully', async () => {
-    const actual = argocd.yamlReader(defaultApplicationYAML)
+    const actual = yamlReader(defaultApplicationYAML)
     const expected = {
       spec: {
         source: {
@@ -121,12 +128,12 @@ entries: {}
 
   it('yamlReader should throw error on invalid yaml', async () => {
     expect(() =>
-      argocd.yamlReader('{{- if eq (getenv "GIT_BRANCH") "master" -}}')
+      yamlReader('{{- if eq (getenv "GIT_BRANCH") "master" -}}')
     ).toThrow(YAMLException)
   })
 
   it('bestEffortReader should load yaml successfully', async () => {
-    const actual = argocd.bestEffortReader(defaultApplicationYAML)
+    const actual = bestEffortReader(defaultApplicationYAML)
     const expected = {
       spec: {
         source: {
@@ -141,8 +148,8 @@ entries: {}
   })
 
   it('bestEffortReader should throw error on invalid yaml', async () => {
-    expect(() => argocd.bestEffortReader('foobar {{')).toThrow(
-      argocd.ApplicationReaderException
+    expect(() => bestEffortReader('foobar {{')).toThrow(
+      ApplicationReaderException
     )
   })
 })

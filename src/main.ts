@@ -1,8 +1,8 @@
-import * as core from '@actions/core'
-import * as github from '@actions/github'
+import {startGroup, info, endGroup, setFailed} from '@actions/core'
+import {getOctokit, context as githubContext} from '@actions/github'
 import multimatch from 'multimatch'
 import md5 from 'md5'
-import * as argocd from './argocd'
+import {readFromString} from './argocd'
 
 // 1. Read from default branch to find if ArgoCD files exists
 // 2. If yes, check if ArgoCD app is helm chart and requires update
@@ -12,8 +12,8 @@ import * as argocd from './argocd'
 async function run(): Promise<void> {
   try {
     const token = process.env.GITHUB_TOKEN || ''
-    const octokit = github.getOctokit(token)
-    const context = github.context
+    const octokit = getOctokit(token)
+    const context = githubContext
     const filePatterns = ['.argocd**.yml']
     const repoInfo = await octokit.repos.get(context.repo)
     const baseBranchName = repoInfo.data?.default_branch
@@ -26,6 +26,7 @@ async function run(): Promise<void> {
     })
     const getTreeResponse = await octokit.git.getTree({
       ...context.repo,
+      // eslint-disable-next-line camelcase
       tree_sha: refData1.object.sha,
       recursive: 'true'
     })
@@ -38,7 +39,7 @@ async function run(): Promise<void> {
 
     // Let's get to work and check those files
     for (const treeItem of treeItems) {
-      core.startGroup(`Processing file: ${treeItem.path}`)
+      startGroup(`Processing file: ${treeItem.path}`)
 
       const headBranchName = `${headBranchNamePrefix}-${md5(treeItem.path)}`
 
@@ -62,9 +63,7 @@ async function run(): Promise<void> {
         ? `heads/${headBranchName}`
         : `heads/${baseBranchName}`
 
-      core.info(
-        `Determine if update is required from branch ${refUpdateBranch}`
-      )
+      info(`Determine if update is required from branch ${refUpdateBranch}`)
 
       const {data: file} = await octokit.repos.getContent({
         ...context.repo,
@@ -73,22 +72,22 @@ async function run(): Promise<void> {
       })
 
       const fileContent = Buffer.from(file.content, 'base64').toString('ascii')
-      const app = await argocd.readFromString(fileContent)
+      const app = await readFromString(fileContent)
 
-      core.info(
+      info(
         `File ${file.path} uses chart ${app.spec.source.chart} version ${app.spec.source.targetRevision}`
       )
 
       // If update is not required, continue with the next file
       if (!app.spec.source.newTargetRevision) {
-        core.info(`Skipping ${file.path}, no newer version available.`)
-        core.endGroup()
+        info(`Skipping ${file.path}, no newer version available.`)
+        endGroup()
         continue
       }
 
       // Update required, create branch if it doesn't exist
       if (!branchExists) {
-        core.info(`Branch missing, creating branch ${headBranchName}`)
+        info(`Branch missing, creating branch ${headBranchName}`)
         const {data: refData2} = await octokit.git.getRef({
           ...context.repo,
           ref: `heads/${baseBranchName}`
@@ -111,7 +110,7 @@ async function run(): Promise<void> {
 
       // core.info(`Found ${file.path} containing chart ${app.spec.source.chart} with version ${app.spec.source.targetRevision}`)
       // core.info(`Fetching repo index from ${app.spec.source.repoURL}/index.yaml for chart ${app.spec.source.chart}`)
-      core.info(
+      info(
         `Latest version for chart ${app.spec.source.chart} in index is ${app.spec.source.newTargetRevision}`
       )
 
@@ -122,7 +121,7 @@ async function run(): Promise<void> {
         `targetRevision: ${app.spec.source.newTargetRevision}`
       )
 
-      core.info(
+      info(
         `build(chart): bump ${app.spec.source.chart} from ${app.spec.source.targetRevision} to ${app.spec.source.newTargetRevision}`
       )
       await octokit.repos.createOrUpdateFileContents({
@@ -145,21 +144,22 @@ Please ensure you have done your due diligence before merging. The checklist bel
 - [ ] Check the release log of the chart for breaking changes
       `.trim()
 
-      core.info(`Creating pull request`)
+      info(`Creating pull request`)
       await octokit.pulls.create({
         ...context.repo,
         title: `build(chart): bump ${app.spec.source.chart} from ${app.spec.source.targetRevision} to ${app.spec.source.newTargetRevision}`,
         head: `refs/heads/${headBranchName}`,
         base: `refs/heads/${baseBranchName}`,
         body: pullRequestBody,
+        // eslint-disable-next-line camelcase
         maintainer_can_modify: true
       })
 
-      core.endGroup()
+      endGroup()
     }
   } catch (error) {
-    core.info(error)
-    core.setFailed(error.message)
+    info(error)
+    setFailed(error.message)
   }
 }
 
