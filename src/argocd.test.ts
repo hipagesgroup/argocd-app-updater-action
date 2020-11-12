@@ -5,7 +5,8 @@ import {
   readFromString,
   yamlReader,
   bestEffortReader,
-  ApplicationReaderException
+  ApplicationReaderException,
+  Application
 } from './argocd'
 
 // jest.mock('./argocd')
@@ -70,7 +71,7 @@ describe('argocd', () => {
     mockHttpClientGet.mockResolvedValueOnce({data: defaultRepositoryIndex})
 
     const actual = await readFromString(defaultApplicationYAML)
-    const expected: argocd.Application = {
+    const expected: Application = {
       spec: {
         source: {
           repoURL: 'https://helm-chart-repo',
@@ -101,7 +102,7 @@ entries: {}
           chart: 'application'
         }
       }
-    } as argocd.Application
+    } as Application
 
     expect(actual).toMatchObject(expected)
   })
@@ -121,7 +122,7 @@ entries: {}
           chart: 'application'
         }
       }
-    } as argocd.Application
+    } as Application
 
     expect(actual).toMatchObject(expected)
   })
@@ -142,7 +143,7 @@ entries: {}
           chart: 'application'
         }
       }
-    } as argocd.Application
+    } as Application
 
     expect(actual).toMatchObject(expected)
   })
