@@ -29,9 +29,105 @@ export interface VersionInfo {
 
 export const httpClient: AxiosInstance = axios.create()
 
+// interface ApplicationReaderInterface {
+//   readFromString(data: string): Application
+// }
+
+// class ApplicationReader implements ApplicationReaderInterface {
+//   strategies: ApplicationReaderInterface[] = [
+//     new ApplicationReaderYaml(),
+//     new ApplicationReaderBestEffort()
+//   ]
+
+//   readFromString(data: string): Application {
+//     for (const strategy of this.strategies) {
+//       try {
+//         return strategy.readFromString(data)
+//       } catch (error) {
+//         continue
+//       }
+//     }
+
+//     throw new Error('Invalid ArgoCD manifest or unknown format.')
+//   }
+// }
+
+// class ApplicationReaderYaml implements ApplicationReaderInterface {
+//   readFromString(data: string): Application {
+//     throw new Error('Method not implemented.')
+//   }
+// }
+
+// class ApplicationReaderBestEffort implements ApplicationReaderInterface {
+//   readFromString(data: string): Application {
+//     throw new Error('Method not implemented.')
+//   }
+// }
+
+type ApplicationReader = (data: string) => Application
+export class ApplicationReaderException extends Error {}
+
+// Reads a string in YAML format and returns an ArgoCD application
+export const yamlReader: ApplicationReader = (data: string) => {
+  return yaml.safeLoad(data) as Application
+}
+
+// Reads a string in unknown format and returns an ArgoCD application
+export const bestEffortReader: ApplicationReader = (data: string) => {
+  // TODO: Ideally we should check for the following:
+  // - contains "apiVersion: argoproj.io/v1alpha1"
+  // - contains "kind: Application"
+
+  const regexp = /(?<key>repoURL|chart|targetRevision): (?<value>.+)/g
+
+  type AdjustedRegex = RegExpExecArray & {groups: {}}
+  const matches = data.matchAll(regexp)
+
+  if (Array.from(matches).length === 0) {
+    throw new ApplicationReaderException(
+      'ApplicationReaderException: Unable to read application manifest.'
+    )
+  }
+
+  const app: Application = {
+    spec: {source: {repoURL: '', chart: '', targetRevision: ''}}
+  }
+
+  // TODO: Figure out how to use named captured groups
+  for (const match of matches) {
+    switch (match[1]) {
+      case 'repoURL':
+        app.spec.source.repoURL = match[2].replace(/^['"](.+)['"]$/, '$1')
+        break
+      case 'chart':
+        app.spec.source.chart = match[2]
+        break
+      case 'targetRevision':
+        app.spec.source.targetRevision = match[2]
+        break
+    }
+  }
+
+  return app
+}
+
+export const applicationReader: ApplicationReader = (data: string) => {
+  for (const reader of [yamlReader, bestEffortReader]) {
+    try {
+      return reader(data)
+    } catch (error) {
+      continue
+    }
+  }
+
+  throw new ApplicationReaderException(
+    'ApplicationReaderException: Unable to read application manifest.'
+  )
+}
+
 export async function readFromString(data: string): Promise<Application> {
   // TODO: handle failures, e.g. if yaml cant be used regex parse the structure
-  const app: Application = yaml.safeLoad(data) as Application
+  const app: Application = applicationReader(data)
 
   // Remove trailing slash
   if (app.spec.source.repoURL.substr(-1) === '/') {
