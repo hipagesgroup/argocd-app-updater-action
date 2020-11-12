@@ -29,41 +29,6 @@ export interface VersionInfo {
 
 export const httpClient: AxiosInstance = axios.create()
 
-// interface ApplicationReaderInterface {
-//   readFromString(data: string): Application
-// }
-
-// class ApplicationReader implements ApplicationReaderInterface {
-//   strategies: ApplicationReaderInterface[] = [
-//     new ApplicationReaderYaml(),
-//     new ApplicationReaderBestEffort()
-//   ]
-
-//   readFromString(data: string): Application {
-//     for (const strategy of this.strategies) {
-//       try {
-//         return strategy.readFromString(data)
-//       } catch (error) {
-//         continue
-//       }
-//     }
-
-//     throw new Error('Invalid ArgoCD manifest or unknown format.')
-//   }
-// }
-
-// class ApplicationReaderYaml implements ApplicationReaderInterface {
-//   readFromString(data: string): Application {
-//     throw new Error('Method not implemented.')
-//   }
-// }
-
-// class ApplicationReaderBestEffort implements ApplicationReaderInterface {
-//   readFromString(data: string): Application {
-//     throw new Error('Method not implemented.')
-//   }
-// }
-
 type ApplicationReader = (data: string) => Application
 export class ApplicationReaderException extends Error {}
 
@@ -83,12 +48,6 @@ export const bestEffortReader: ApplicationReader = (data: string) => {
   type AdjustedRegex = RegExpExecArray & {groups: {}}
   const matches = data.matchAll(regexp)
 
-  if (Array.from(matches).length === 0) {
-    throw new ApplicationReaderException(
-      'ApplicationReaderException: Unable to read application manifest.'
-    )
-  }
-
   const app: Application = {
     spec: {source: {repoURL: '', chart: '', targetRevision: ''}}
   }
@@ -106,6 +65,16 @@ export const bestEffortReader: ApplicationReader = (data: string) => {
         app.spec.source.targetRevision = match[2]
         break
     }
+  }
+
+  if (
+    app.spec.source.repoURL === '' ||
+    app.spec.source.chart === '' ||
+    app.spec.source.targetRevision === ''
+  ) {
+    throw new ApplicationReaderException(
+      'ApplicationReaderException: Unable to read application manifest.'
+    )
   }
 
   return app

@@ -1,4 +1,4 @@
-import { YAMLException } from 'js-yaml'
+import {YAMLException} from 'js-yaml'
 import * as argocd from './argocd'
 
 // jest.mock('./argocd')
