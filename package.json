@@ -27,7 +27,7 @@
   "dependencies": {
     "@actions/core": "^1.2.6",
     "@actions/github": "^4.0.0",
-    "@actions/glob": "^0.1.0",
+    "@actions/glob": "^0.1.1",
     "axios": "^0.21.0",
     "axios-retry": "^3.1.9",
     "compare-versions": "^3.6.0",
