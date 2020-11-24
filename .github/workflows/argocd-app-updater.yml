@@ -1,0 +1,20 @@
+name: Update ArgoCD Applications
+
+on:
+  workflow_dispatch:
+  schedule:
+  - cron: "0 0 * * *"
+
+jobs:
+  argocd-app-updater:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: hipagesgroup/argocd-app-updater-action@v1.0.2
+      with:
+        allrepos: true
+        dryrun: true
+        files: ".argocd**.y*ml,luke/_apps/**.y*ml"
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT }}
