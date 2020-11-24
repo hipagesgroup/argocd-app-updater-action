@@ -10,7 +10,7 @@ jobs:
       - uses: actions/setup-node@v2-beta
         with:
           node-version: '15'
-      - run: npm install
+      - run: yarn install
       - run: npm run all
       - uses: stefanzweifel/git-auto-commit-action@v4
         with:
