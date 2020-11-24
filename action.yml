@@ -1,13 +1,18 @@
 name: 'ArgoCD Application Updater'
-description: 'Provide a description here'
+description: 'Automatically update ArgoCD application manifests via pull requests.'
 author: 'hipages'
 inputs:
-  # repo-token:
-  #   description: 'GitHub token being used to create pull requests.'
-  #   required: true
   files:
-    description: 'Files containing the application manifest'
+    description: 'A comma seperated list of glob patterns of files containing the application manifests.'
     default: '.argocd**.y*ml'
+    required: false
+  dryrun:
+    description: 'Enable dry-run to execute without applying changes.'
+    default: 'false'
+    required: false
+  allrepos:
+    description: 'If true, all repositories will be processed.'
+    default: 'false'
     required: false
 runs:
   using: 'node12'
