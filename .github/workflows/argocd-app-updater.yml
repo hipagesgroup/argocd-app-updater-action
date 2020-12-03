@@ -2,6 +2,11 @@ name: Update ArgoCD Applications
 
 on:
   workflow_dispatch:
+    inputs:
+      dryrun:
+        description: 'DryRun'     
+        required: true
+        default: 'true'  
   schedule:
   - cron: "0 0 * * *"
 
