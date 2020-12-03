@@ -19,7 +19,6 @@ jobs:
     - uses: hipagesgroup/argocd-app-updater-action@v1.3.0
       with:
         allrepos: true
-        dryrun: true
         files: ".argocd**.y*ml,luke/_apps/**.y*ml"
       env:
         GITHUB_TOKEN: ${{ secrets.PAT }}
