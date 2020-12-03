@@ -191,7 +191,7 @@ async function run() {
                 // Let's get to work and check those files
                 for (const treeItem of treeItems) {
                     core_1.startGroup(`Processing file: ${treeItem.path}`);
-                    const headBranchName = `${headBranchNamePrefix}-${md5_1.default(treeItem.path)}`;
+                    const headBranchName = `${headBranchNamePrefix}-${md5_1.default(treeItem.path).substring(0, 6)}`;
                     // Determine if the branch exists
                     let branchExists = false;
                     try {
