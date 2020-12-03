@@ -68,7 +68,7 @@ async function run(): Promise<void> {
         for (const treeItem of treeItems) {
           startGroup(`Processing file: ${treeItem.path}`)
 
-          const headBranchName = `${headBranchNamePrefix}-${md5(treeItem.path)}`
+          const headBranchName = `${headBranchNamePrefix}-${md5(treeItem.path).substring(0,6)}`
 
           // Determine if the branch exists
           let branchExists = false
