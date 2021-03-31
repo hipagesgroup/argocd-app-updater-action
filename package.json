@@ -34,7 +34,7 @@
     "multimatch": "^5.0.0"
   },
   "devDependencies": {
-    "@types/diff": "^4.0.2",
+    "@types/diff": "^5.0.0",
     "@types/jest": "^26.0.19",
     "@types/js-yaml": "^3.12.5",
     "@types/md5": "^2.2.1",
