@@ -1,0 +1,12 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: argocd-app-updater-action
+  description: >-
+    
+  annotations:
+    github.com/project-slug: hipagesgroup/argocd-app-updater-action
+spec:
+  type: service
+  lifecycle: experimental
+  owner: platform
