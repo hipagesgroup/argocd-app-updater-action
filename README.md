@@ -6,6 +6,7 @@ Automatically update ArgoCD application manifests via pull requests.
 The action runs either as a scheduled job or can be executed manually.
 It will check the chart registry for the latest chart version and if an update is available a pull request is created with the updated manifest.
 
+
 ## Features
 
 - Run as GitHub Action per-repository or across multiple repositories (requires personal access token)
