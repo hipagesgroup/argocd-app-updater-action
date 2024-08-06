@@ -1,0 +1,28 @@
+name: Security CI
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+jobs:
+  security:
+    name: Security Actions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: hipagesgroup/actions/checkout@master
+        with:
+          fetch-depth: 0
+      - name: Run Security Actions
+        uses: hipagesgroup/actions/security@master
+        with:
+          lacework-token: ${{ secrets.LW_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+          gitleaks-token: ${{ secrets.GITLEAKS_LICENSE }}
+          registry-url: "NA"
+          image-tag: "NA"
+          language: "NA"
