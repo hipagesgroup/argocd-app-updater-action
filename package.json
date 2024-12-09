@@ -26,12 +26,12 @@
   "license": "MIT",
   "dependencies": {
     "@actions/core": "^1.2.6",
-    "@actions/github": "^4.0.0",
+    "@actions/github": "^6.0.0",
     "axios": "^0.21.1",
     "compare-versions": "^3.6.0",
     "diff": "^5.0.0",
     "md5": "^2.3.0",
-    "multimatch": "^5.0.0"
+    "multimatch": "^7.0.0"
   },
   "devDependencies": {
     "@types/diff": "^5.0.0",
