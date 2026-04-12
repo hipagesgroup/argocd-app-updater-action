@@ -11,6 +11,7 @@ metadata:
     github.com/project-slug: hipagesgroup/argocd-app-updater-action
     github.com/team-slug: site-reliability-engineering
   tags:
+    - repo
     - typescript
     - github-actions
     - argocd
@@ -19,4 +20,4 @@ spec:
   type: tool
   lifecycle: production
   owner: site-reliability-engineering
-  system: argocd-app-updater-action
+  domain: site-reliability
