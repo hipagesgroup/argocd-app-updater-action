@@ -2,7 +2,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Location
 metadata:
   name: argocd-app-updater-action
-  description: Applications managed within the argocd-app-updater-action repo.
+  description: Catalog entities for argocd-app-updater-action.
 spec:
   targets:
     - ./catalog/*.yaml
