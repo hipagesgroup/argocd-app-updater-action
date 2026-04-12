@@ -1,0 +1,21 @@
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: argocd-app-updater-action
+  title: ArgoCD App Updater Action
+  description: >-
+    A GitHub Action that automatically checks Helm chart registries for newer
+    versions and raises pull requests to update ArgoCD application manifests.
+  annotations:
+    github.com/project-slug: hipagesgroup/argocd-app-updater-action
+    github.com/team-slug: site-reliability-engineering
+  tags:
+    - repo
+    - typescript
+    - github-actions
+    - argocd
+    - helm
+spec:
+  domain: site-reliability
+  owner: site-reliability-engineering
+  lifecycle: production
