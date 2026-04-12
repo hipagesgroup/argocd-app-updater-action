@@ -16,7 +16,7 @@ metadata:
     - argocd
     - helm
 spec:
-  type: library
+  type: tool
   lifecycle: production
   owner: site-reliability-engineering
   system: argocd-app-updater-action
