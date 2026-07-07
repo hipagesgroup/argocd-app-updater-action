@@ -1,5 +1,5 @@
-[![Link to argocd-app-updater-action in hipages Developer Portal, Component: argocd-app-updater-action](https://backyard.prod.hipages.com.au/api/badges/entity/default/component/argocd-app-updater-action/badge/pingback "Link to argocd-app-updater-action in hipages Developer Portal")](https://backyard.prod.hipages.com.au/catalog/default/component/argocd-app-updater-action)
-[![Entity owner badge, owner: site-reliability-engineering](https://backyard.prod.hipages.com.au/api/badges/entity/default/component/argocd-app-updater-action/badge/owner "Entity owner badge")](https://backyard.prod.hipages.com.au/catalog/default/component/argocd-app-updater-action)
+[![Link to argocd-app-updater-action in hipages Developer Portal, Component: argocd-app-updater-action](https://backyard.prod.hipages.com.au/api/badges/entity/default/component/argocd-app-updater-action/badge/pingback "Link to argocd-app-updater-action in hipages Developer Portal")](https://backyard.internal.prod.hipages.com.au/catalog/default/component/argocd-app-updater-action)
+[![Entity owner badge, owner: site-reliability-engineering](https://backyard.prod.hipages.com.au/api/badges/entity/default/component/argocd-app-updater-action/badge/owner "Entity owner badge")](https://backyard.internal.prod.hipages.com.au/catalog/default/component/argocd-app-updater-action)
 # argocd-app-updater-action
 
 Automatically update ArgoCD application manifests via pull requests.
